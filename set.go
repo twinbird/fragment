@@ -4,7 +4,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func handleSet(con net.Conn, args []string) error {
@@ -37,7 +36,6 @@ func handleSet(con net.Conn, args []string) error {
 	sv.data = []byte(data)
 
 	db.set(args[0], sv)
-	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	con.Write([]byte("STORED\n"))
 
 	return nil

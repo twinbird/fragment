@@ -88,7 +88,8 @@ func handleStart(port int) (*net.TCPListener, error) {
 
 func handleClient(con net.Conn) {
 	defer con.Close()
-	con.SetReadDeadline(time.Now().Add(3 * time.Minute))
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	buf := make([]byte, 1024)
 
 	for {
@@ -126,7 +127,6 @@ func handleCommand(con net.Conn, command string, args []string) (bool, error) {
 	case "get":
 		handleGet(con, args)
 	case "version":
-		con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		con.Write([]byte("0.0.1\n"))
 	case "quit":
 		return true, nil
