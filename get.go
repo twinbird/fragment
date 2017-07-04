@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"time"
 )
 
 func handleGet(con net.Conn, args []string) error {
@@ -12,8 +11,11 @@ func handleGet(con net.Conn, args []string) error {
 		return err
 	}
 
-	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	con.Write([]byte(v.toString()))
+	if v == nil {
+		con.Write([]byte("END"))
+	} else {
+		con.Write([]byte(v.toString()))
+	}
 
 	return nil
 }
