@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 )
 
 const RECV_BUF_SIZE = 1024
@@ -46,6 +47,8 @@ func sendQuit(t *testing.T, con net.Conn) {
 func TestSetAndGet(t *testing.T) {
 	con := makeConnection(t)
 	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
 	// set
 	t.Log("set name 12345 0 8")
@@ -100,6 +103,8 @@ func TestSetAndGet(t *testing.T) {
 func TestVersion(t *testing.T) {
 	con := makeConnection(t)
 	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
 	t.Log("send:version")
 	_, err := con.Write([]byte("version"))
