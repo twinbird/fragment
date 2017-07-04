@@ -126,6 +126,8 @@ func handleCommand(con net.Conn, command string, args []string) (bool, error) {
 		handleSet(con, args)
 	case "add":
 		handleAdd(con, args)
+	case "replace":
+		handleReplace(con, args)
 	case "get":
 		handleGet(con, args)
 	case "version":
