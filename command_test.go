@@ -96,8 +96,6 @@ func TestSetAndGet(t *testing.T) {
 		t.Errorf("get command error. Expect:%x, Actual:%x\n",
 			expectGetVer, getRecvBuf)
 	}
-
-	sendQuit(t, con)
 }
 
 func TestVersion(t *testing.T) {
@@ -126,6 +124,4 @@ func TestVersion(t *testing.T) {
 		t.Errorf("Version command error. Expect:%x, Actual:%x\n",
 			expectVer, recvBuf)
 	}
-
-	sendQuit(t, con)
 }

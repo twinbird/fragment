@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const MaxValueSize = 1024
+const MaxValueSize = 1000000
 
 func handleGet(con net.Conn, args []string) error {
 	key := args[0]

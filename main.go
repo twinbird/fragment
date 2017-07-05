@@ -94,18 +94,19 @@ func handleClient(con net.Conn) {
 
 	for {
 		mlen, err := con.Read(buf)
+		if mlen == 0 {
+			log.Println("connection closed")
+			break
+		}
 		if err != nil {
 			log.Println(err)
 			break
 		}
 		command, args, err := parseCommand(buf, mlen)
 
-		quit, err := handleCommand(con, command, args)
+		err = handleCommand(con, command, args)
 		if err != nil {
 			log.Println(err)
-			break
-		}
-		if quit == true {
 			break
 		}
 	}
@@ -120,7 +121,7 @@ func parseCommand(commandBuf []byte, commandLen int) (string, []string, error) {
 	return comAry[0], comAry[1:], nil
 }
 
-func handleCommand(con net.Conn, command string, args []string) (bool, error) {
+func handleCommand(con net.Conn, command string, args []string) error {
 	switch command {
 	case "set":
 		handleSet(con, args)
@@ -134,8 +135,6 @@ func handleCommand(con net.Conn, command string, args []string) (bool, error) {
 		handleDelete(con, args)
 	case "version":
 		con.Write([]byte("0.0.1\n"))
-	case "quit":
-		return true, nil
 	}
-	return false, nil
+	return nil
 }
