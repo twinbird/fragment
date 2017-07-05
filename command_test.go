@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -35,24 +36,36 @@ func makeConnection(t *testing.T) net.Conn {
 	return con
 }
 
-func TestSetAndGet(t *testing.T) {
-	con := makeConnection(t)
-	defer con.Close()
-	con.SetReadDeadline(time.Now().Add(10 * time.Second))
-	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+type setCommandParam struct {
+	key     []byte
+	value   []byte
+	flags   int
+	exptime int
+}
 
-	// set
-	t.Log("set name 12345 0 8")
-	_, err := con.Write([]byte("set name 12345 0 8"))
+func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
+	outBuf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(outBuf, "set %s %d %d %d", param.key, param.flags, param.exptime, len(param.value))
+
+	t.Log(outBuf)
+	_, err := con.Write(outBuf.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("twinbird")
-	_, err = con.Write([]byte("twinbird"))
+
+	// write body
+	outBuf = new(bytes.Buffer)
+	fmt.Fprintf(outBuf, "%s", param.value)
+
+	t.Log(outBuf)
+	_, err = con.Write(outBuf.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// read response
 	t.Log("read start")
 	recvBuf := make([]byte, RECV_BUF_SIZE)
 	rlen, err := con.Read(recvBuf)
@@ -62,16 +75,32 @@ func TestSetAndGet(t *testing.T) {
 	recvBuf = recvBuf[:rlen]
 	t.Logf("recv:%s", string(recvBuf))
 
+	// check read response
 	expectVer := []byte("STORED\n")
-
 	if bytes.Compare(expectVer, recvBuf) != 0 {
 		t.Errorf("set command response error. Expect:%x, Actual:%x\n",
 			expectVer, recvBuf)
 	}
+}
+
+func TestSetAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// set
+	setprm := &setCommandParam{
+		key:     []byte("name"),
+		value:   []byte("twinbird"),
+		flags:   12345,
+		exptime: 0,
+	}
+	setCommand(t, con, setprm)
 
 	// get
 	t.Log("send:get name")
-	_, err = con.Write([]byte("get name"))
+	_, err := con.Write([]byte("get name"))
 	if err != nil {
 		t.Fatal(err)
 	}

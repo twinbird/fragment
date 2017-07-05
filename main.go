@@ -113,6 +113,8 @@ func handleClient(con net.Conn) {
 }
 
 func parseCommand(commandBuf []byte, commandLen int) (string, []string, error) {
+	log.Println(string(commandBuf))
+
 	command := string(commandBuf[:commandLen])
 	command = strings.TrimRight(command, "\n\r")
 
