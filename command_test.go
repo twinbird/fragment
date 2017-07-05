@@ -47,20 +47,11 @@ func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	outBuf := new(bytes.Buffer)
 
 	// write command
-	fmt.Fprintf(outBuf, "set %s %d %d %d", param.key, param.flags, param.exptime, len(param.value))
+	fmt.Fprintf(outBuf, "set %s %d %d %d\r\n%s",
+		param.key, param.flags, param.exptime, len(param.value), param.value)
 
 	t.Log(outBuf)
 	_, err := con.Write(outBuf.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// write body
-	outBuf = new(bytes.Buffer)
-	fmt.Fprintf(outBuf, "%s", param.value)
-
-	t.Log(outBuf)
-	_, err = con.Write(outBuf.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +67,7 @@ func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	t.Logf("recv:%s", string(recvBuf))
 
 	// check read response
-	expectVer := []byte("STORED\n")
+	expectVer := []byte("STORED\r\n")
 	if bytes.Compare(expectVer, recvBuf) != 0 {
 		t.Errorf("set command response error. Expect:%x, Actual:%x\n",
 			expectVer, recvBuf)
@@ -100,7 +91,7 @@ func TestSetAndGet(t *testing.T) {
 
 	// get
 	t.Log("send:get name")
-	_, err := con.Write([]byte("get name"))
+	_, err := con.Write([]byte("get name\r\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +103,7 @@ func TestSetAndGet(t *testing.T) {
 	getRecvBuf = getRecvBuf[:grlen]
 	t.Logf("recv:%s", string(getRecvBuf))
 
-	expectGetVer := []byte("VALUE name 12345 8\ntwinbird\nEND")
+	expectGetVer := []byte("VALUE name 12345 8\r\ntwinbird\r\nEND\r\n")
 	if bytes.Compare(expectGetVer, getRecvBuf) != 0 {
 		t.Errorf("get command error. Expect:%x, Actual:%x\n",
 			expectGetVer, getRecvBuf)
@@ -126,7 +117,7 @@ func TestVersion(t *testing.T) {
 	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
 	t.Log("send:version")
-	_, err := con.Write([]byte("version"))
+	_, err := con.Write([]byte("version\r\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +130,7 @@ func TestVersion(t *testing.T) {
 	recvBuf = recvBuf[:rlen]
 	t.Logf("recv:%s", string(recvBuf))
 
-	expectVer := []byte("0.0.1\n")
+	expectVer := []byte("0.0.1\r\n")
 
 	if bytes.Compare(expectVer, recvBuf) != 0 {
 		t.Errorf("Version command error. Expect:%x, Actual:%x\n",

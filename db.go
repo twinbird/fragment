@@ -14,7 +14,7 @@ type storeValue struct {
 }
 
 func (sv *storeValue) toString() string {
-	s := fmt.Sprintf("VALUE %s %d %d\n%s\nEND",
+	s := fmt.Sprintf("VALUE %s %d %d\r\n%s\r\nEND\r\n",
 		string(sv.key), sv.flags, sv.bytes, string(sv.data))
 	return s
 }
@@ -24,54 +24,54 @@ type inmemoryDB struct {
 	bucket map[string]*storeValue
 }
 
-func (db *inmemoryDB) set(key string, value *storeValue) error {
+func (db *inmemoryDB) set(key []byte, value *storeValue) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	db.bucket[key] = value
+	db.bucket[string(key)] = value
 
 	return nil
 }
 
-func (db *inmemoryDB) get(key string) (*storeValue, error) {
+func (db *inmemoryDB) get(key []byte) (*storeValue, error) {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
-	v := db.bucket[key]
+	v := db.bucket[string(key)]
 
 	return v, nil
 }
 
-func (db *inmemoryDB) add(key string, value *storeValue) (bool, error) {
+func (db *inmemoryDB) add(key []byte, value *storeValue) (bool, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	v := db.bucket[key]
+	v := db.bucket[string(key)]
 	if v != nil {
 		return false, nil
 	}
-	db.bucket[key] = value
+	db.bucket[string(key)] = value
 
 	return true, nil
 }
 
-func (db *inmemoryDB) replace(key string, value *storeValue) (bool, error) {
+func (db *inmemoryDB) replace(key []byte, value *storeValue) (bool, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	v := db.bucket[key]
+	v := db.bucket[string(key)]
 	if v == nil {
 		return false, nil
 	}
-	db.bucket[key] = value
+	db.bucket[string(key)] = value
 
 	return true, nil
 }
 
-func (db *inmemoryDB) delete(key string) (bool, error) {
+func (db *inmemoryDB) delete(key []byte) (bool, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	v := db.bucket[key]
+	v := db.bucket[string(key)]
 	if v == nil {
 		return false, nil
 	}
-	db.bucket[key] = nil
+	db.bucket[string(key)] = nil
 
 	return true, nil
 }

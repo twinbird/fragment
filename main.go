@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -102,9 +101,13 @@ func handleClient(con net.Conn) {
 			log.Println(err)
 			break
 		}
-		command, args, err := parseCommand(buf, mlen)
+		command, err := parseCommand(buf, mlen)
+		if err != nil {
+			log.Println(err)
+			break
+		}
 
-		err = handleCommand(con, command, args)
+		err = handleCommand(con, command)
 		if err != nil {
 			log.Println(err)
 			break
@@ -112,31 +115,20 @@ func handleClient(con net.Conn) {
 	}
 }
 
-func parseCommand(commandBuf []byte, commandLen int) (string, []string, error) {
-	log.Println(string(commandBuf))
-
-	command := string(commandBuf[:commandLen])
-	command = strings.TrimRight(command, "\n\r")
-
-	comAry := strings.Split(command, " ")
-
-	return comAry[0], comAry[1:], nil
-}
-
-func handleCommand(con net.Conn, command string, args []string) error {
-	switch command {
+func handleCommand(con net.Conn, command *Command) error {
+	switch string(command.command) {
 	case "set":
-		handleSet(con, args)
+		handleSet(con, command)
 	case "add":
-		handleAdd(con, args)
+		handleAdd(con, command)
 	case "replace":
-		handleReplace(con, args)
+		handleReplace(con, command)
 	case "get":
-		handleGet(con, args)
+		handleGet(con, command)
 	case "delete":
-		handleDelete(con, args)
+		handleDelete(con, command)
 	case "version":
-		con.Write([]byte("0.0.1\n"))
+		handleVersion(con, command)
 	}
 	return nil
 }
