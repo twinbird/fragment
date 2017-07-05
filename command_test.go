@@ -35,15 +35,6 @@ func makeConnection(t *testing.T) net.Conn {
 	return con
 }
 
-func sendQuit(t *testing.T, con net.Conn) {
-	// send quit
-	t.Log("send:quit")
-	_, err := con.Write([]byte("quit"))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestSetAndGet(t *testing.T) {
 	con := makeConnection(t)
 	defer con.Close()
@@ -62,6 +53,7 @@ func TestSetAndGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Log("read start")
 	recvBuf := make([]byte, RECV_BUF_SIZE)
 	rlen, err := con.Read(recvBuf)
 	if err != nil {

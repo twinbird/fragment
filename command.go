@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -39,7 +40,9 @@ func handleSet(con net.Conn, args []string) error {
 	}
 
 	buf := make([]byte, MaxValueSize)
+	log.Println("before Read")
 	dlen, err := con.Read(buf)
+	log.Println("after Read")
 	if err != nil {
 		return err
 	}
