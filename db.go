@@ -64,6 +64,18 @@ func (db *inmemoryDB) replace(key string, value *storeValue) (bool, error) {
 	return true, nil
 }
 
+func (db *inmemoryDB) delete(key string) (bool, error) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	v := db.bucket[key]
+	if v == nil {
+		return false, nil
+	}
+	db.bucket[key] = nil
+
+	return true, nil
+}
+
 func (db *inmemoryDB) initialize() error {
 	db.bucket = make(map[string]*storeValue)
 	return nil

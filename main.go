@@ -130,6 +130,8 @@ func handleCommand(con net.Conn, command string, args []string) (bool, error) {
 		handleReplace(con, args)
 	case "get":
 		handleGet(con, args)
+	case "delete":
+		handleDelete(con, args)
 	case "version":
 		con.Write([]byte("0.0.1\n"))
 	case "quit":

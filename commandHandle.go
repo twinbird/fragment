@@ -8,6 +8,22 @@ import (
 
 const MaxValueSize = 1024
 
+func handleGet(con net.Conn, args []string) error {
+	key := args[0]
+	v, err := db.get(key)
+	if err != nil {
+		return err
+	}
+
+	if v == nil {
+		con.Write([]byte("END"))
+	} else {
+		con.Write([]byte(v.toString()))
+	}
+
+	return nil
+}
+
 func handleSet(con net.Conn, args []string) error {
 	flags, err := strconv.Atoi(args[1])
 	if err != nil {
@@ -133,6 +149,22 @@ func handleReplace(con net.Conn, args []string) error {
 		return nil
 	}
 	con.Write([]byte("STORED\n"))
+
+	return nil
+}
+
+func handleDelete(con net.Conn, args []string) error {
+	key := args[0]
+	ok, err := db.delete(key)
+	if err != nil {
+		return err
+	}
+
+	if ok == false {
+		con.Write([]byte("NOT_DELETED"))
+		return nil
+	}
+	con.Write([]byte("DELETED"))
 
 	return nil
 }
