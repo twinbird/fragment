@@ -68,9 +68,38 @@ func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 
 	// check read response
 	expectVer := []byte("STORED\r\n")
-	if bytes.Compare(expectVer, recvBuf) != 0 {
+	if bytes.Equal(expectVer, recvBuf) == false {
 		t.Errorf("set command response error. Expect:%x, Actual:%x\n",
 			expectVer, recvBuf)
+	}
+}
+
+func getCommand(t *testing.T, con net.Conn, param *setCommandParam) {
+	buf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(buf, "get %s\r\n", param.key)
+
+	t.Log(buf)
+	_, err := con.Write(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	getRecvBuf := make([]byte, RECV_BUF_SIZE)
+	grlen, err := con.Read(getRecvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getRecvBuf = getRecvBuf[:grlen]
+	t.Logf("recv:%s", string(getRecvBuf))
+
+	// check response
+	buf.Reset()
+	fmt.Fprintf(buf, "VALUE %s %d %d\r\n%s\r\nEND\r\n", param.key, param.flags, len(param.value), param.value)
+	if bytes.Equal(buf.Bytes(), getRecvBuf) == false {
+		t.Errorf("get command error. Expect:%x, Actual:%x\n", buf, getRecvBuf)
 	}
 }
 
@@ -90,24 +119,7 @@ func TestSetAndGet(t *testing.T) {
 	setCommand(t, con, setprm)
 
 	// get
-	t.Log("send:get name")
-	_, err := con.Write([]byte("get name\r\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	getRecvBuf := make([]byte, RECV_BUF_SIZE)
-	grlen, err := con.Read(getRecvBuf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	getRecvBuf = getRecvBuf[:grlen]
-	t.Logf("recv:%s", string(getRecvBuf))
-
-	expectGetVer := []byte("VALUE name 12345 8\r\ntwinbird\r\nEND\r\n")
-	if bytes.Compare(expectGetVer, getRecvBuf) != 0 {
-		t.Errorf("get command error. Expect:%x, Actual:%x\n",
-			expectGetVer, getRecvBuf)
-	}
+	getCommand(t, con, setprm)
 }
 
 func TestVersion(t *testing.T) {
