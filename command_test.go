@@ -74,6 +74,112 @@ func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	}
 }
 
+func addCommand(t *testing.T, con net.Conn, param *setCommandParam, exist bool) {
+	buf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(buf, "add %s %d %d %d\r\n%s\r\n",
+		param.key, param.flags, param.exptime, len(param.value), param.value)
+
+	t.Log(buf)
+	_, err := con.Write(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	t.Log("read start")
+	recvBuf := make([]byte, RECV_BUF_SIZE)
+	rlen, err := con.Read(recvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recvBuf = recvBuf[:rlen]
+	t.Logf("recv:%s", string(recvBuf))
+
+	// check read response
+	var expectVer []byte
+	if exist == true {
+		expectVer = []byte("NOT_STORED\r\n")
+	} else {
+		expectVer = []byte("STORED\r\n")
+	}
+	if bytes.Equal(expectVer, recvBuf) == false {
+		t.Errorf("add command response error. Expect:%x, Actual:%x\n",
+			expectVer, recvBuf)
+	}
+}
+
+func deleteCommand(t *testing.T, con net.Conn, param *setCommandParam, exist bool) {
+	buf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(buf, "delete %s\r\n", param.key)
+
+	t.Log(buf)
+	_, err := con.Write(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	t.Log("read start")
+	recvBuf := make([]byte, RECV_BUF_SIZE)
+	rlen, err := con.Read(recvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recvBuf = recvBuf[:rlen]
+	t.Logf("recv:%s", string(recvBuf))
+
+	// check read response
+	var expectVer []byte
+	if exist == true {
+		expectVer = []byte("DELETED\r\n")
+	} else {
+		expectVer = []byte("NOT_FOUND\r\n")
+	}
+	if bytes.Equal(expectVer, recvBuf) == false {
+		t.Errorf("delete command response error. Expect:%x, Actual:%x\n", expectVer, recvBuf)
+	}
+}
+
+func replaceCommand(t *testing.T, con net.Conn, param *setCommandParam, exist bool) {
+	buf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(buf, "replace %s %d %d %d\r\n%s\r\n",
+		param.key, param.flags, param.exptime, len(param.value), param.value)
+
+	t.Log(buf)
+	_, err := con.Write(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	t.Log("read start")
+	recvBuf := make([]byte, RECV_BUF_SIZE)
+	rlen, err := con.Read(recvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recvBuf = recvBuf[:rlen]
+	t.Logf("recv:%s", string(recvBuf))
+
+	// check read response
+	var expectVer []byte
+	if exist == false {
+		expectVer = []byte("NOT_STORED\r\n")
+	} else {
+		expectVer = []byte("STORED\r\n")
+	}
+	if bytes.Equal(expectVer, recvBuf) == false {
+		t.Errorf("replace command response error. Expect:%x, Actual:%x\n",
+			expectVer, recvBuf)
+	}
+}
+
 func getCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	buf := new(bytes.Buffer)
 
@@ -97,7 +203,11 @@ func getCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 
 	// check response
 	buf.Reset()
-	fmt.Fprintf(buf, "VALUE %s %d %d\r\n%s\r\nEND\r\n", param.key, param.flags, len(param.value), param.value)
+	if len(param.value) == 0 {
+		fmt.Fprintf(buf, "END\r\n")
+	} else {
+		fmt.Fprintf(buf, "VALUE %s %d %d\r\n%s\r\nEND\r\n", param.key, param.flags, len(param.value), param.value)
+	}
 	if bytes.Equal(buf.Bytes(), getRecvBuf) == false {
 		t.Errorf("get command error. Expect:%x, Actual:%x\n", buf, getRecvBuf)
 	}
@@ -111,8 +221,8 @@ func TestSetAndGet(t *testing.T) {
 
 	// set
 	setprm := &setCommandParam{
-		key:     []byte("name"),
-		value:   []byte("twinbird"),
+		key:     []byte("SetAndGetKey"),
+		value:   []byte("SetAndGetValue"),
 		flags:   12345,
 		exptime: 0,
 	}
@@ -120,6 +230,154 @@ func TestSetAndGet(t *testing.T) {
 
 	// get
 	getCommand(t, con, setprm)
+}
+
+func TestSetAndReplaceAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// set
+	setprm := &setCommandParam{
+		key:     []byte("SetAndReplaceAndGetKey"),
+		value:   []byte("SetAndReplaceAndGetValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	setCommand(t, con, setprm)
+
+	// replace
+	setprm.value = []byte("replaced")
+	replaceCommand(t, con, setprm, true)
+
+	// get
+	getCommand(t, con, setprm)
+}
+
+func TestNonSetReplace(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// replace
+	setprm := &setCommandParam{
+		key:     []byte("NonSetReplaceKey"),
+		value:   []byte("NonSetReplaceValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	replaceCommand(t, con, setprm, false)
+}
+
+func TestSetAndOverwriteAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// set
+	setprm := &setCommandParam{
+		key:     []byte("SetAndOverwriteAndGetKey"),
+		value:   []byte("SetAndOverwriteAndGetKeyValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	setCommand(t, con, setprm)
+
+	// overwrite
+	setprm.value = []byte("overwrite")
+	setCommand(t, con, setprm)
+
+	// get
+	getCommand(t, con, setprm)
+}
+
+func TestNonSetGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	setprm := &setCommandParam{
+		key:     []byte("NonSetGet"),
+		value:   []byte(""),
+		flags:   0,
+		exptime: 0,
+	}
+	getCommand(t, con, setprm)
+}
+
+func TestAddAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	setprm := &setCommandParam{
+		key:     []byte("AddAndGetKey"),
+		value:   []byte("AddAndGetValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	addCommand(t, con, setprm, false)
+	getCommand(t, con, setprm)
+}
+
+func TestDuplicateAdd(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	setprm := &setCommandParam{
+		key:     []byte("add-key"),
+		value:   []byte("add-value"),
+		flags:   12345,
+		exptime: 0,
+	}
+	addCommand(t, con, setprm, false)
+	addCommand(t, con, setprm, true)
+}
+
+func TestSetAndDeleteAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// set
+	setprm := &setCommandParam{
+		key:     []byte("SetAndDeleteAndGetKey"),
+		value:   []byte("SetAndDeleteAndGetValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	setCommand(t, con, setprm)
+
+	// delete
+	deleteCommand(t, con, setprm, true)
+
+	// get
+	setprm.value = []byte("")
+	getCommand(t, con, setprm)
+}
+
+func TestNonExistDelete(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	// delete
+	setprm := &setCommandParam{
+		key:     []byte("NonExistDeleteKey"),
+		value:   []byte("NonExistDeleteValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+	deleteCommand(t, con, setprm, false)
 }
 
 func TestVersion(t *testing.T) {

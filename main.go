@@ -41,7 +41,7 @@ func handleStop(listener *net.TCPListener) error {
 
 func handleStart(port int) (*net.TCPListener, error) {
 	if err := db.initialize(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	portStr := ":" + strconv.Itoa(port)
@@ -59,7 +59,6 @@ func handleStart(port int) (*net.TCPListener, error) {
 		for {
 			con, err := listener.Accept()
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 			go handleClient(con)
@@ -87,7 +86,6 @@ func handleClient(con net.Conn) {
 	for {
 		mlen, err := con.Read(inBuf)
 		if mlen == 0 {
-			log.Println("connection closed")
 			break
 		}
 		if err != nil {
