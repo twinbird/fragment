@@ -47,7 +47,7 @@ func setCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	outBuf := new(bytes.Buffer)
 
 	// write command
-	fmt.Fprintf(outBuf, "set %s %d %d %d\r\n%s",
+	fmt.Fprintf(outBuf, "set %s %d %d %d\r\n%s\r\n",
 		param.key, param.flags, param.exptime, len(param.value), param.value)
 
 	t.Log(outBuf)
@@ -132,7 +132,7 @@ func TestVersion(t *testing.T) {
 
 	expectVer := []byte("0.0.1\r\n")
 
-	if bytes.Compare(expectVer, recvBuf) != 0 {
+	if bytes.Equal(expectVer, recvBuf) == false {
 		t.Errorf("Version command error. Expect:%x, Actual:%x\n",
 			expectVer, recvBuf)
 	}

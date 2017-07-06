@@ -1,13 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
+)
+
+const (
+	MaxValueByteSize    = 1000000
+	MaxKeyByteSize      = 256
+	MaxIntCharacterSize = 10
+	MaxCommandLength    = 7
 )
 
 var db inmemoryDB
@@ -18,38 +25,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sig_ch := make(chan os.Signal, 1)
-	exit_ch := make(chan int)
-	signal.Notify(
-		sig_ch,
-		os.Interrupt,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
 
-	waitInterruptLoop(sig_ch, exit_ch)
-
-	_ = <-exit_ch
-	handleStop(listener)
-}
-
-func waitInterruptLoop(sig_ch chan os.Signal, exit_ch chan int) {
-	for {
-		s := <-sig_ch
-		switch s {
-		case os.Interrupt:
-			exit_ch <- 0
-		case syscall.SIGHUP:
-			exit_ch <- 0
-		case syscall.SIGINT:
-			exit_ch <- 0
-		case syscall.SIGTERM:
-			exit_ch <- 0
-		case syscall.SIGQUIT:
-			exit_ch <- 0
-		}
+	for _ = range sigCh {
+		break
 	}
+
+	handleStop(listener)
 }
 
 func handleStop(listener *net.TCPListener) error {
@@ -89,10 +72,20 @@ func handleClient(con net.Conn) {
 	defer con.Close()
 	con.SetReadDeadline(time.Now().Add(1 * time.Minute))
 	con.SetWriteDeadline(time.Now().Add(1 * time.Minute))
-	buf := make([]byte, 1024)
+
+	// command + key + parameter(32bit integer) * 3 + data + space * 4 + '\r\n' * 2
+	inBuf := make([]byte,
+		MaxCommandLength+
+			MaxKeyByteSize+
+			MaxIntCharacterSize*3+
+			MaxValueByteSize+
+			4+
+			2*2)
+	buf := make([]byte, 0)
+	buffer := bytes.NewBuffer(buf)
 
 	for {
-		mlen, err := con.Read(buf)
+		mlen, err := con.Read(inBuf)
 		if mlen == 0 {
 			log.Println("connection closed")
 			break
@@ -101,33 +94,41 @@ func handleClient(con net.Conn) {
 			log.Println(err)
 			break
 		}
-		command, err := parseCommand(buf, mlen)
+		_, err = buffer.Write(inBuf[:mlen])
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		command, err := parseCommand(buffer.Bytes())
 		if err != nil {
 			log.Println(err)
 			break
 		}
 
-		err = handleCommand(con, command)
-		if err != nil {
-			log.Println(err)
-			break
+		if command.parsed == true {
+			err = handleCommand(con, command)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			buffer.Reset()
 		}
 	}
 }
 
 func handleCommand(con net.Conn, command *Command) error {
-	switch string(command.command) {
-	case "set":
+	switch {
+	case bytes.Equal(command.command, []byte("set")):
 		handleSet(con, command)
-	case "add":
+	case bytes.Equal(command.command, []byte("add")):
 		handleAdd(con, command)
-	case "replace":
+	case bytes.Equal(command.command, []byte("replace")):
 		handleReplace(con, command)
-	case "get":
+	case bytes.Equal(command.command, []byte("get")):
 		handleGet(con, command)
-	case "delete":
+	case bytes.Equal(command.command, []byte("delete")):
 		handleDelete(con, command)
-	case "version":
+	case bytes.Equal(command.command, []byte("version")):
 		handleVersion(con, command)
 	}
 	return nil

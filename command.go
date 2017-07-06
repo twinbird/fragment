@@ -7,8 +7,6 @@ import (
 	"strconv"
 )
 
-const MaxValueSize = 1000000
-
 type Command struct {
 	command []byte
 	key     []byte
@@ -16,9 +14,10 @@ type Command struct {
 	exptime int
 	flags   int
 	bytes   int
+	parsed  bool
 }
 
-func parseCommand(buf []byte, commandLen int) (*Command, error) {
+func parseCommand(buf []byte) (*Command, error) {
 	idx := bytes.Index(buf, []byte("\r\n"))
 	if idx < 0 {
 		return nil, fmt.Errorf("invalid command")
@@ -33,8 +32,9 @@ func parseCommand(buf []byte, commandLen int) (*Command, error) {
 
 	com := &Command{}
 	com.command = comPrm[0]
-	switch string(comPrm[0]) {
-	case "set":
+
+	switch {
+	case bytes.Equal(comPrm[0], []byte("set")):
 		if len(comPrm) != 5 {
 			return nil, fmt.Errorf("invalid command")
 		}
@@ -54,8 +54,17 @@ func parseCommand(buf []byte, commandLen int) (*Command, error) {
 		} else {
 			com.bytes = v
 		}
-		com.value = buf[idx+len("\r\n") : (idx + len("\r\n") + com.bytes)]
-	case "add":
+		// there is no data yet
+		lastIdx := bytes.LastIndex(buf, []byte("\r\n"))
+		if lastIdx == idx {
+			return com, nil
+		}
+		if lastIdx < 0 {
+			return nil, fmt.Errorf("invalid command")
+		}
+		com.value = buf[idx+len("\r\n") : lastIdx]
+		com.parsed = true
+	case bytes.Equal(comPrm[0], []byte("add")):
 		if len(comPrm) != 5 {
 			return nil, fmt.Errorf("invalid command")
 		}
@@ -75,8 +84,17 @@ func parseCommand(buf []byte, commandLen int) (*Command, error) {
 		} else {
 			com.bytes = v
 		}
-		com.value = buf[idx+len("\r\n") : (idx + len("\r\n") + com.bytes)]
-	case "replace":
+		// there is no data yet
+		lastIdx := bytes.LastIndex(buf, []byte("\r\n"))
+		if lastIdx == idx {
+			return com, nil
+		}
+		if lastIdx < 0 {
+			return nil, fmt.Errorf("invalid command")
+		}
+		com.value = buf[idx+len("\r\n") : lastIdx]
+		com.parsed = true
+	case bytes.Equal(comPrm[0], []byte("replace")):
 		if len(comPrm) != 5 {
 			return nil, fmt.Errorf("invalid command")
 		}
@@ -96,21 +114,32 @@ func parseCommand(buf []byte, commandLen int) (*Command, error) {
 		} else {
 			com.bytes = v
 		}
-		com.value = buf[idx+len("\r\n") : (idx + len("\r\n") + com.bytes)]
-	case "delete":
+		// there is no data yet
+		lastIdx := bytes.LastIndex(buf, []byte("\r\n"))
+		if lastIdx == idx {
+			return com, nil
+		}
+		if lastIdx < 0 {
+			return nil, fmt.Errorf("invalid command")
+		}
+		com.value = buf[idx+len("\r\n") : lastIdx]
+		com.parsed = true
+	case bytes.Equal(comPrm[0], []byte("delete")):
 		if len(comPrm) != 2 {
 			return nil, fmt.Errorf("invalid command")
 		}
 		com.key = comPrm[1]
-	case "get":
+		com.parsed = true
+	case bytes.Equal(comPrm[0], []byte("get")):
 		if len(comPrm) != 2 {
 			return nil, fmt.Errorf("invalid command")
 		}
 		com.key = comPrm[1]
-	case "version":
-		// nothing todo
+		com.parsed = true
+	case bytes.Equal(comPrm[0], []byte("version")):
+		com.parsed = true
 	default:
-		return nil, fmt.Errorf("invalid command")
+		return nil, fmt.Errorf("invalid command: '%s'", string(comPrm[0]))
 	}
 
 	return com, nil
