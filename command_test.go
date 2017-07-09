@@ -407,3 +407,52 @@ func TestVersion(t *testing.T) {
 			expectVer, recvBuf)
 	}
 }
+
+func TestSetDataOverBytesAndGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	param := &setCommandParam{
+		key:     []byte("SetDataOverBytesKey"),
+		value:   []byte("SetDataOverBytesValue"),
+		flags:   12345,
+		exptime: 0,
+	}
+
+	outBuf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(outBuf, "set %s %d %d %d\r\n%s\r\n",
+		param.key, param.flags, param.exptime, len(param.value)-1, param.value)
+
+	t.Log(outBuf)
+	_, err := con.Write(outBuf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	t.Log("read start")
+	recvBuf := make([]byte, RECV_BUF_SIZE)
+	rlen, err := con.Read(recvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recvBuf = recvBuf[:rlen]
+	t.Logf("recv:%s", string(recvBuf))
+
+	// check read response
+	expectVer := []byte("STORED\r\n")
+	if bytes.Equal(expectVer, recvBuf) == false {
+		t.Errorf("set command response error. Expect:%x, Actual:%x\n",
+			expectVer, recvBuf)
+	}
+
+	// rewrite to right response data
+	param.value = param.value[:len(param.value)-1]
+
+	// get check
+	getCommand(t, con, param)
+}
