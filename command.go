@@ -162,11 +162,17 @@ func handleGet(con net.Conn, com *Command) error {
 
 func handleSet(con net.Conn, com *Command) error {
 	sv := &storeValue{}
-	sv.key = []byte(com.key)
+	key := make([]byte, len(com.key))
+	data := make([]byte, len(com.value))
+
+	copy(key, com.key)
+	copy(data, com.value)
+
+	sv.key = key
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = com.value
+	sv.data = data
 
 	if err := db.set(com.key, sv); err != nil {
 		return err
@@ -178,11 +184,17 @@ func handleSet(con net.Conn, com *Command) error {
 
 func handleAdd(con net.Conn, com *Command) error {
 	sv := &storeValue{}
-	sv.key = []byte(com.key)
+	key := make([]byte, len(com.key))
+	data := make([]byte, len(com.value))
+
+	copy(key, com.key)
+	copy(data, com.value)
+
+	sv.key = key
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = com.value
+	sv.data = data
 
 	if ok, err := db.add(com.key, sv); err != nil {
 		return err
@@ -197,11 +209,17 @@ func handleAdd(con net.Conn, com *Command) error {
 
 func handleReplace(con net.Conn, com *Command) error {
 	sv := &storeValue{}
-	sv.key = com.key
+	key := make([]byte, len(com.key))
+	data := make([]byte, len(com.value))
+
+	copy(key, com.key)
+	copy(data, com.value)
+
+	sv.key = key
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = com.value
+	sv.data = data
 
 	if ok, err := db.replace(com.key, sv); err != nil {
 		return err
