@@ -172,7 +172,7 @@ func handleSet(con net.Conn, com *Command) error {
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = data
+	sv.data = data[:com.bytes]
 
 	if err := db.set(com.key, sv); err != nil {
 		return err
@@ -194,7 +194,7 @@ func handleAdd(con net.Conn, com *Command) error {
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = data
+	sv.data = data[:com.bytes]
 
 	if ok, err := db.add(com.key, sv); err != nil {
 		return err
@@ -219,7 +219,7 @@ func handleReplace(con net.Conn, com *Command) error {
 	sv.flags = com.flags
 	sv.exptime = com.exptime
 	sv.bytes = com.bytes
-	sv.data = data
+	sv.data = data[:com.bytes]
 
 	if ok, err := db.replace(com.key, sv); err != nil {
 		return err
