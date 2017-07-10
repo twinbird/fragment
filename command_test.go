@@ -180,6 +180,35 @@ func replaceCommand(t *testing.T, con net.Conn, param *setCommandParam, exist bo
 	}
 }
 
+func notFoundGetCommand(t *testing.T, con net.Conn, param *setCommandParam) {
+	buf := new(bytes.Buffer)
+
+	// write command
+	fmt.Fprintf(buf, "get %s\r\n", param.key)
+
+	t.Log(buf)
+	_, err := con.Write(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// read response
+	getRecvBuf := make([]byte, RECV_BUF_SIZE)
+	grlen, err := con.Read(getRecvBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getRecvBuf = getRecvBuf[:grlen]
+	t.Logf("recv:%s", string(getRecvBuf))
+
+	// check response
+	buf.Reset()
+	fmt.Fprintf(buf, "NOT_FOUND\r\n")
+	if bytes.Equal(buf.Bytes(), getRecvBuf) == false {
+		t.Errorf("get command error. Expect:%x, Actual:%x\n", buf, getRecvBuf)
+	}
+}
+
 func getCommand(t *testing.T, con net.Conn, param *setCommandParam) {
 	buf := new(bytes.Buffer)
 
@@ -306,7 +335,7 @@ func TestNonSetGet(t *testing.T) {
 		flags:   0,
 		exptime: 0,
 	}
-	getCommand(t, con, setprm)
+	notFoundGetCommand(t, con, setprm)
 }
 
 func TestAddAndGet(t *testing.T) {
@@ -323,6 +352,26 @@ func TestAddAndGet(t *testing.T) {
 	}
 	addCommand(t, con, setprm, false)
 	getCommand(t, con, setprm)
+}
+
+func TestAddAndExpiredGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	setprm := &setCommandParam{
+		key:     []byte("AddAndExpiredGetKey"),
+		value:   []byte("AddAndExpiredGetValue"),
+		flags:   12345,
+		exptime: 1,
+	}
+	addCommand(t, con, setprm, false)
+
+	// wait 1 second for expire
+	time.Sleep(2 * time.Second)
+
+	notFoundGetCommand(t, con, setprm)
 }
 
 func TestDuplicateAdd(t *testing.T) {
@@ -361,7 +410,7 @@ func TestSetAndDeleteAndGet(t *testing.T) {
 
 	// get
 	setprm.value = []byte("")
-	getCommand(t, con, setprm)
+	notFoundGetCommand(t, con, setprm)
 }
 
 func TestNonExistDelete(t *testing.T) {

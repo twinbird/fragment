@@ -32,7 +32,7 @@ func isExpired(v *storeValue) bool {
 	}
 	exptime := time.Duration(v.exptime)
 	t := v.storedTime.Add(exptime * time.Second)
-	if t.After(time.Now()) == true {
+	if t.After(time.Now()) == false {
 		return true
 	} else {
 		return false

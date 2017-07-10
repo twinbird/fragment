@@ -152,7 +152,7 @@ func handleGet(con net.Conn, com *Command) error {
 	}
 
 	if v == nil {
-		con.Write([]byte("END\r\n"))
+		con.Write([]byte("NOT_FOUND\r\n"))
 	} else {
 		con.Write([]byte(v.toString()))
 	}
