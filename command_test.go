@@ -374,6 +374,26 @@ func TestAddAndExpiredGet(t *testing.T) {
 	notFoundGetCommand(t, con, setprm)
 }
 
+func TestSetAndExpiredGet(t *testing.T) {
+	con := makeConnection(t)
+	defer con.Close()
+	con.SetReadDeadline(time.Now().Add(10 * time.Second))
+	con.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	setprm := &setCommandParam{
+		key:     []byte("AddAndExpiredGetKey"),
+		value:   []byte("AddAndExpiredGetValue"),
+		flags:   12345,
+		exptime: 1,
+	}
+	setCommand(t, con, setprm)
+
+	// wait 1 second for expire
+	time.Sleep(2 * time.Second)
+
+	notFoundGetCommand(t, con, setprm)
+}
+
 func TestDuplicateAdd(t *testing.T) {
 	con := makeConnection(t)
 	defer con.Close()
