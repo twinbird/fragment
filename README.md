@@ -51,3 +51,6 @@ delete [key]
 > DELETED
 ```
 
+## Lisence
+
+MIT
