@@ -1,6 +1,6 @@
 # fragment
 
-Distribute simple key-value-store.
+Simple key-value-store server.
 
 ## commands
 
